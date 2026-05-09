@@ -752,11 +752,61 @@ function buildJotformUrl(s) {
 }
 
 async function silentSubmit(s) {
-  const url = buildJotformUrl(s);
-  if (!url) return;
-  try { await fetch(url, { method:'GET', mode:'no-cors' }); } catch(e){}
-  document.getElementById('jf-iframe').src = url;
-  await new Promise(r => setTimeout(r, 320));
+  const d   = WD[s.id];
+  const cfg = JOTFORM_CONFIG;
+  if (cfg.formId === 'YOUR_FORM_ID_HERE') return;
+
+  // Build a hidden form and POST it directly — most reliable method
+  const form = document.createElement('form');
+  form.method  = 'POST';
+  form.action  = `https://submit.jotform.com/submit/${cfg.formId}/`;
+  form.target  = 'jf-target-' + s.id;
+  form.style.display = 'none';
+
+  // Create a named iframe to capture the response (keeps page intact)
+  const iframe = document.createElement('iframe');
+  iframe.name  = 'jf-target-' + s.id;
+  iframe.style.display = 'none';
+  document.body.appendChild(iframe);
+
+  const fields = {
+    formID:                           cfg.formId,
+    [cfg.fields.submissionDate + '[month]']: SESSION.date.split('-')[1],
+    [cfg.fields.submissionDate + '[day]']:   SESSION.date.split('-')[2],
+    [cfg.fields.submissionDate + '[year]']:  SESSION.date.split('-')[0],
+    [cfg.fields.teacherName]:         SESSION.teacher,
+    [cfg.fields.circleName]:          SESSION.circle,
+    [cfg.fields.studentName]:         s.name,
+    [cfg.fields.pageLastWeek]:        String(s.page),
+    [cfg.fields.pageThisWeek]:        String(d.newPage),
+    [cfg.fields.attended]:            d.attend   ? 'Yes' : 'No',
+    [cfg.fields.pageAdvanced]:        d.page     ? 'Yes' : 'No',
+    [cfg.fields.homePractice]:        d.home     ? 'Yes' : 'No',
+    [cfg.fields.recitationTested]:    d.tested   ? 'Yes' : 'No',
+    [cfg.fields.repeatPage]:          d.repeat   ? 'Yes' : 'No',
+    [cfg.fields.behaviourNote]:       d.behav    ? 'Yes' : 'No',
+    [cfg.fields.struggled]:           d.struggle ? 'Yes' : 'No',
+    [cfg.fields.struggleTopic]:       d.struggleType || '—',
+    [cfg.fields.sessionNote]:         d.note || '',
+    [cfg.fields.weekTrend]:           trend(HISTORY[s.id]?.history).label,
+    [cfg.fields.actionRequired]:      action(HISTORY[s.id]?.history, d).label,
+  };
+
+  Object.entries(fields).forEach(([name, value]) => {
+    const input = document.createElement('input');
+    input.type  = 'hidden';
+    input.name  = name;
+    input.value = value;
+    form.appendChild(input);
+  });
+
+  document.body.appendChild(form);
+  form.submit();
+
+  // Wait for submission then clean up
+  await new Promise(r => setTimeout(r, 800));
+  try { document.body.removeChild(form); } catch(e){}
+  setTimeout(() => { try { document.body.removeChild(iframe); } catch(e){} }, 3000);
 }
 
 async function submitSession() {
