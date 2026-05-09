@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Quran Circle Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   STEP 1 — JOTFORM CONFIGURATION
+   Replace YOUR_FORM_ID_HERE with your JotForm numeric form ID.
+   Field names below must match exactly what you named them
+   in JotForm. See SETUP.md for the full field list.
+═══════════════════════════════════════════════════════════ */
+const JOTFORM_CONFIG = {
+  formId: '261281111769052',
+  fields: {
+    submissionDate:   'q1_date',
+    teacherName:      'q2_teacher',
+    circleName:       'q3_circle',
+    studentName:      'q4_student',
+    pageLastWeek:     'q5_pageLastWeek',
+    pageThisWeek:     'q6_pageThisWeek',
+    attended:         'q7_attended',
+    pageAdvanced:     'q8_pageAdvanced',
+    homePractice:     'q9_homePractice',
+    recitationTested: 'q10_tested',
+    repeatPage:       'q11_repeat',
+    behaviourNote:    'q12_behaviour',
+    struggled:        'q13_struggled',
+    struggleTopic:    'q14_struggleTopic',
+    sessionNote:      'q15_note',
+    weekTrend:        'q16_trend',
+    actionRequired:   'q17_action'
+  }
+};
+
+/* ═══════════════════════════════════════════════════════════
+   STEP 2 — CIRCLES & TEACHERS
+   Add or rename circles and teachers to match your school.
+═══════════════════════════════════════════════════════════ */
+const CIRCLES = [
+  { id: 'A', label: 'Circle A', teacher: 'Ustadha Nour'  },
+  { id: 'B', label: 'Circle B', teacher: 'Ustadh Bilal'  },
+  { id: 'C', label: 'Circle C', teacher: 'Ustadha Amina' },
+  { id: 'D', label: 'Circle D', teacher: 'Ustadh Tariq'  },
+];
+
+/* ═══════════════════════════════════════════════════════════
+   STEP 3 — SUPERVISOR PIN (optional)
+   Set a numeric PIN for the supervisor view.
+   Set to '' to disable PIN protection.
+═══════════════════════════════════════════════════════════ */
+const SUPERVISOR_PIN = '1234';
+</script>
+
+<style>
+:root {
+  --green:        #2d6a1f;
+  --green-mid:    #4a9632;
+  --green-light:  #e8f5e2;
+  --green-border: #8cc96e;
+  --amber:        #b06d00;
+  --amber-light:  #fef3dc;
+  --amber-border: #f0aa3a;
+  --red:          #9b2020;
+  --red-light:    #fdeaea;
+  --red-border:   #e05555;
+  --blue:         #1a4f8a;
+  --blue-light:   #e6f0fc;
+  --blue-border:  #6aaee8;
+  --teal:         #0f6b5a;
+  --teal-light:   #e1f5ee;
+  --teal-border:  #4dbfa0;
+  --coral:        #8b3515;
+  --coral-light:  #faeae4;
+  --coral-border: #e08060;
+  --pink:         #7a2050;
+  --pink-light:   #fce8f3;
+  --pink-border:  #d97ab0;
+  --ink:          #1a1a1a;
+  --ink2:         #444;
+  --ink3:         #888;
+  --border:       #e0e0e0;
+  --surface:      #f7f7f5;
+  --white:        #ffffff;
+  --radius:       12px;
+  --radius-sm:    8px;
+  --font:         'DM Sans', sans-serif;
+  --mono:         'DM Mono', monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { font-family: var(--font); background: var(--surface); color: var(--ink); font-size: 14px; min-height: 100vh; }
+
+/* screens */
+.screen { display: none; min-height: 100vh; flex-direction: column; }
+.screen.active { display: flex; }
+
+/* header */
+.app-header { background: var(--green); color: white; padding: 14px 18px; position: sticky; top: 0; z-index: 50; }
+.hdr-row { display: flex; align-items: center; gap: 10px; }
+.app-logo { width: 34px; height: 34px; background: rgba(255,255,255,0.15); border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 19px; flex-shrink: 0; }
+.app-title { font-size: 15px; font-weight: 500; }
+.app-sub { font-size: 11px; opacity: 0.72; margin-top: 1px; }
+.hdr-btn { background: rgba(255,255,255,0.15); border: none; color: white; width: 34px; height: 34px; border-radius: 9px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 17px; flex-shrink: 0; }
+
+/* progress strip */
+.prog-strip { height: 3px; background: rgba(255,255,255,0.2); }
+.prog-fill { height: 3px; background: white; transition: width 0.3s; width: 0; }
+
+/* setup */
+.setup-body { flex: 1; padding: 20px 16px 40px; max-width: 520px; margin: 0 auto; width: 100%; }
+.scard { background: var(--white); border-radius: var(--radius); border: 1px solid var(--border); padding: 20px; margin-bottom: 14px; }
+.scard-title { font-size: 13px; font-weight: 500; color: var(--ink2); margin-bottom: 14px; display: flex; align-items: center; gap: 7px; }
+.field-grp { margin-bottom: 12px; }
+.field-lbl { font-size: 11px; font-weight: 500; color: var(--ink3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 5px; }
+.field-inp { width: 100%; padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-family: var(--font); font-size: 14px; color: var(--ink); background: var(--white); appearance: none; }
+.field-inp:focus { outline: none; border-color: var(--green); }
+
+.circle-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.circle-opt { border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 12px; cursor: pointer; text-align: center; transition: all 0.15s; background: var(--surface); }
+.circle-opt:hover { border-color: var(--green-border); background: var(--green-light); }
+.circle-opt.selected { border-color: var(--green); background: var(--green-light); }
+.circle-opt .co-label { font-size: 13px; font-weight: 500; }
+.circle-opt .co-teacher { font-size: 11px; color: var(--ink3); margin-top: 2px; }
+.circle-opt.selected .co-label { color: var(--green); }
+
+.student-list-setup { display: flex; flex-direction: column; gap: 6px; }
+.s-setup-row { display: flex; align-items: center; gap: 7px; background: var(--surface); border-radius: var(--radius-sm); padding: 8px 10px; border: 1px solid var(--border); }
+.s-setup-row input { border: none; background: transparent; font-family: var(--font); font-size: 13px; color: var(--ink); flex: 1; min-width: 0; }
+.s-setup-row input:focus { outline: none; }
+.pg-badge { font-family: var(--mono); font-size: 11px; color: var(--ink3); background: var(--white); border: 1px solid var(--border); border-radius: 4px; padding: 2px 7px; flex-shrink: 0; }
+.del-btn { background: none; border: none; color: var(--ink3); cursor: pointer; font-size: 16px; padding: 2px; flex-shrink: 0; }
+.del-btn:hover { color: var(--red); }
+.add-s-row { display: flex; gap: 6px; margin-top: 8px; }
+.add-s-row input { flex: 1; padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-family: var(--font); font-size: 13px; color: var(--ink); min-width: 0; }
+.add-s-row input:focus { outline: none; border-color: var(--green); }
+.add-s-row input.pg-f { width: 58px; flex: 0 0 58px; }
+
+.btn-primary { background: var(--green); color: white; border: none; padding: 14px 24px; border-radius: var(--radius); font-family: var(--font); font-size: 15px; font-weight: 500; cursor: pointer; width: 100%; margin-top: 8px; transition: opacity 0.15s; }
+.btn-primary:hover { opacity: 0.88; }
+.btn-primary:active { transform: scale(0.98); }
+.btn-outline { background: white; color: var(--green); border: 1.5px solid var(--green); padding: 8px 16px; border-radius: var(--radius-sm); font-family: var(--font); font-size: 13px; font-weight: 500; cursor: pointer; }
+.btn-outline:hover { background: var(--green-light); }
+
+/* session */
+.session-meta { background: rgba(255,255,255,0.12); border-radius: 8px; padding: 8px 12px; margin-top: 10px; display: flex; gap: 14px; flex-wrap: wrap; }
+.meta-i { font-size: 11px; opacity: 0.85; }
+.meta-i strong { font-weight: 500; }
+
+.student-scroll { flex: 1; padding: 12px 14px 100px; overflow-y: auto; }
+
+.sc { background: var(--white); border-radius: var(--radius); border: 1px solid var(--border); margin-bottom: 10px; overflow: hidden; transition: border-color 0.2s; }
+.sc.complete { border-color: var(--green-border); }
+.sc.flagged  { border-color: var(--red-border); }
+
+.sc-hdr { display: flex; align-items: center; gap: 10px; padding: 12px 14px; cursor: pointer; border-bottom: 1px solid transparent; transition: border-color 0.2s; user-select: none; }
+.sc.open .sc-hdr { border-bottom-color: var(--border); }
+.s-av { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; flex-shrink: 0; }
+.s-info { flex: 1; min-width: 0; }
+.s-name { font-size: 14px; font-weight: 500; }
+.s-status { font-size: 11px; color: var(--ink3); margin-top: 2px; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.s-chev { font-size: 18px; color: var(--ink3); transition: transform 0.2s; flex-shrink: 0; }
+.sc.open .s-chev { transform: rotate(180deg); }
+
+.pip { display: inline-block; width: 7px; height: 7px; border-radius: 50%; }
+.pip-a { background: #4a9632; }
+.pip-h { background: #b06d00; }
+.pip-t { background: #0f6b5a; }
+.pip-s { background: #9b2020; }
+.pip-r { background: #8b3515; }
+.pip-b { background: #7a2050; }
+
+.sc-body { padding: 14px; display: none; }
+.sc.open .sc-body { display: block; }
+
+.pg-sec { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.pg-lbl { font-size: 11px; font-weight: 500; color: var(--ink3); text-transform: uppercase; letter-spacing: 0.05em; flex: 1; }
+.pg-ctrl { display: flex; align-items: center; gap: 7px; }
+.pg-ctrl button { width: 32px; height: 32px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface); font-size: 20px; cursor: pointer; color: var(--ink); display: flex; align-items: center; justify-content: center; font-weight: 300; line-height: 1; }
+.pg-ctrl button:active { background: var(--green-light); }
+.pg-num { font-family: var(--mono); font-size: 16px; font-weight: 500; min-width: 32px; text-align: center; }
+.pg-delta { font-family: var(--mono); font-size: 10px; padding: 2px 7px; border-radius: 4px; font-weight: 500; }
+.d-up   { background: var(--green-light); color: var(--green); }
+.d-same { background: var(--surface); color: var(--ink3); border: 1px solid var(--border); }
+.d-down { background: var(--red-light); color: var(--red); }
+
+.cr-lbl { font-size: 11px; font-weight: 500; color: var(--ink3); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+.cr-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 12px; }
+.cr-btn { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 4px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface); cursor: pointer; transition: all 0.12s; user-select: none; }
+.cr-btn:active { transform: scale(0.93); }
+.cr-icon { font-size: 20px; line-height: 1; }
+.cr-txt { font-size: 10px; color: var(--ink3); text-align: center; line-height: 1.2; }
+.cr-btn.on .cr-txt { font-weight: 500; }
+
+.cr-btn[data-k="attend"].on  { background: var(--green-light);  border-color: var(--green-border); }
+.cr-btn[data-k="attend"].on  .cr-txt { color: var(--green);  }
+.cr-btn[data-k="page"].on    { background: var(--blue-light);   border-color: var(--blue-border);  }
+.cr-btn[data-k="page"].on    .cr-txt { color: var(--blue);   }
+.cr-btn[data-k="home"].on    { background: var(--amber-light);  border-color: var(--amber-border); }
+.cr-btn[data-k="home"].on    .cr-txt { color: var(--amber);  }
+.cr-btn[data-k="tested"].on  { background: var(--teal-light);   border-color: var(--teal-border);  }
+.cr-btn[data-k="tested"].on  .cr-txt { color: var(--teal);   }
+.cr-btn[data-k="struggle"].on{ background: var(--red-light);    border-color: var(--red-border);   }
+.cr-btn[data-k="struggle"].on .cr-txt { color: var(--red);   }
+.cr-btn[data-k="repeat"].on  { background: var(--coral-light);  border-color: var(--coral-border); }
+.cr-btn[data-k="repeat"].on  .cr-txt { color: var(--coral);  }
+.cr-btn[data-k="behav"].on   { background: var(--pink-light);   border-color: var(--pink-border);  }
+.cr-btn[data-k="behav"].on   .cr-txt { color: var(--pink);   }
+
+.str-sel { width: 100%; padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--red-border); background: var(--red-light); font-family: var(--font); font-size: 13px; color: var(--red); margin-bottom: 10px; display: none; appearance: none; }
+.str-sel.show { display: block; }
+
+.note-ta { width: 100%; padding: 9px 11px; border-radius: var(--radius-sm); border: 1px solid var(--border); font-family: var(--font); font-size: 13px; color: var(--ink); resize: none; height: 58px; background: var(--surface); }
+.note-ta:focus { outline: none; border-color: var(--green); background: white; }
+
+/* footer */
+.sess-footer { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid var(--border); padding: 12px 16px; display: flex; gap: 10px; align-items: center; z-index: 40; }
+.foot-prog { flex: 1; }
+.foot-lbl { font-size: 11px; color: var(--ink3); margin-bottom: 4px; }
+.foot-bar-bg { height: 4px; background: var(--border); border-radius: 2px; }
+.foot-bar-fill { height: 4px; background: var(--green); border-radius: 2px; transition: width 0.3s; }
+.sub-btn { background: var(--green); color: white; border: none; padding: 12px 20px; border-radius: var(--radius); font-family: var(--font); font-size: 14px; font-weight: 500; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 6px; transition: opacity 0.15s; }
+.sub-btn:hover { opacity: 0.88; }
+.sub-btn:disabled { background: var(--border); color: var(--ink3); cursor: not-allowed; }
+
+/* success */
+.success-body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px 24px; text-align: center; }
+.suc-icon { font-size: 62px; margin-bottom: 18px; }
+.suc-title { font-size: 22px; font-weight: 500; margin-bottom: 8px; }
+.suc-sub { font-size: 14px; color: var(--ink3); margin-bottom: 28px; line-height: 1.65; }
+.suc-pills { display: flex; gap: 7px; flex-wrap: wrap; justify-content: center; margin-bottom: 28px; }
+.suc-pill { font-size: 12px; padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface); color: var(--ink2); font-weight: 500; }
+.suc-pill.g { background: var(--green-light); border-color: var(--green-border); color: var(--green); }
+.suc-pill.a { background: var(--amber-light); border-color: var(--amber-border); color: var(--amber); }
+.suc-pill.r { background: var(--red-light);   border-color: var(--red-border);   color: var(--red);   }
+
+/* supervisor */
+.sup-body { flex: 1; padding: 14px 14px 32px; overflow-y: auto; }
+.sup-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+.sup-m { background: var(--white); border-radius: var(--radius-sm); border: 1px solid var(--border); padding: 10px 12px; text-align: center; }
+.sup-m .mv { font-size: 24px; font-weight: 500; }
+.sup-m .ml { font-size: 10px; color: var(--ink3); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.05em; }
+.mv.g { color: var(--green); } .mv.r { color: var(--red); } .mv.a { color: var(--amber); }
+
+.alert-box { background: var(--red-light); border: 1px solid var(--red-border); border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 12px; }
+.alert-title { font-size: 12px; font-weight: 500; color: var(--red); margin-bottom: 5px; }
+.alert-names { display: flex; gap: 5px; flex-wrap: wrap; }
+.alert-name { font-size: 11px; background: white; border: 1px solid var(--red-border); border-radius: 3px; padding: 2px 7px; color: var(--red); }
+
+.sec-title { font-size: 11px; font-weight: 500; color: var(--ink3); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 8px; margin-top: 16px; }
+
+.circle-block { background: var(--white); border-radius: var(--radius); border: 1px solid var(--border); margin-bottom: 12px; overflow: hidden; }
+.circle-block-hdr { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--surface); }
+.cb-title { font-size: 13px; font-weight: 500; }
+.cb-meta  { font-size: 11px; color: var(--ink3); }
+.cb-chips { display: flex; gap: 5px; }
+.cb-chip { font-size: 10px; padding: 2px 7px; border-radius: 10px; border: 1px solid var(--border); color: var(--ink3); white-space: nowrap; }
+.cb-chip.r { background: var(--red-light);   border-color: var(--red-border);   color: var(--red);   }
+.cb-chip.a { background: var(--amber-light); border-color: var(--amber-border); color: var(--amber); }
+.cb-chip.g { background: var(--green-light); border-color: var(--green-border); color: var(--green); }
+
+.sup-s-row { display: flex; align-items: center; gap: 8px; padding: 9px 14px; border-bottom: 1px solid var(--border); }
+.sup-s-row:last-child { border-bottom: none; }
+.sup-sn { font-size: 13px; font-weight: 500; width: 85px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sup-pg { font-family: var(--mono); font-size: 11px; color: var(--ink3); width: 38px; flex-shrink: 0; }
+.hist-dots { display: flex; gap: 3px; flex: 1; }
+.hd { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+.hd.g { background: #4a9632; } .hd.a { background: #e0aa3a; } .hd.r { background: #e05555; } .hd.x { background: var(--border); }
+.act-badge { font-size: 10px; font-weight: 500; padding: 3px 7px; border-radius: 4px; white-space: nowrap; flex-shrink: 0; }
+.ab-call   { background: var(--red-light);   color: var(--red);   }
+.ab-watch  { background: var(--amber-light); color: var(--amber); }
+.ab-praise { background: var(--green-light); color: var(--green); }
+.ab-ok     { background: var(--surface); color: var(--ink3); border: 1px solid var(--border); }
+
+.sup-detail-row { padding: 0 14px 8px; }
+.sup-crit-strip { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+.crit-tag { font-size: 10px; padding: 2px 6px; border-radius: 3px; }
+.crit-tag.pos { background: var(--green-light); color: var(--green); }
+.crit-tag.neg { background: var(--red-light);   color: var(--red);   }
+.crit-tag.warn{ background: var(--amber-light); color: var(--amber); }
+
+.note-display { font-size: 11px; color: var(--ink3); font-style: italic; margin-top: 3px; }
+
+.sup-foot { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+.sup-btn { height: 36px; padding: 0 14px; border-radius: var(--radius-sm); font-size: 12px; cursor: pointer; border: 1px solid var(--border); background: var(--white); color: var(--ink2); font-family: var(--font); display: flex; align-items: center; gap: 5px; }
+.sup-btn:hover { background: var(--surface); }
+.sup-btn.primary { background: var(--green); color: white; border-color: var(--green); }
+
+/* pin screen */
+.pin-body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px 24px; }
+.pin-icon { font-size: 48px; margin-bottom: 16px; }
+.pin-title { font-size: 17px; font-weight: 500; margin-bottom: 6px; }
+.pin-sub { font-size: 13px; color: var(--ink3); margin-bottom: 24px; }
+.pin-input { font-family: var(--mono); font-size: 24px; text-align: center; letter-spacing: 0.3em; width: 160px; padding: 12px; border-radius: var(--radius-sm); border: 1.5px solid var(--border); color: var(--ink); background: var(--white); margin-bottom: 12px; }
+.pin-input:focus { outline: none; border-color: var(--green); }
+.pin-error { font-size: 12px; color: var(--red); margin-top: -4px; margin-bottom: 10px; min-height: 18px; }
+
+/* toast */
+.toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(14px); background: var(--ink); color: white; padding: 10px 18px; border-radius: 20px; font-size: 13px; opacity: 0; transition: all 0.22s; z-index: 200; white-space: nowrap; pointer-events: none; }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* hidden JotForm iframe */
+#jf-iframe { display: none; width: 1px; height: 1px; border: none; position: absolute; top: -9999px; }
+
+@media (max-width: 360px) {
+  .cr-grid { gap: 4px; }
+  .cr-btn { padding: 8px 2px; }
+  .cr-icon { font-size: 18px; }
+}
+</style>
+</head>
+<body>
+
+<div id="toast" class="toast"></div>
+<iframe id="jf-iframe" title="JotForm silent submit" aria-hidden="true"></iframe>
+
+<!-- ══ SCREEN: SETUP ══ -->
+<div class="screen active" id="scr-setup">
+  <div class="app-header">
+    <div class="hdr-row">
+      <div class="app-logo">☪</div>
+      <div><div class="app-title">Quran Circle Tracker</div><div class="app-sub">Noorani Qa'idah — Green Book</div></div>
+      <button class="hdr-btn" style="margin-left:auto" onclick="goSupervisor()" title="Supervisor view" aria-label="Supervisor view">📊</button>
+    </div>
+  </div>
+  <div class="setup-body">
+
+    <div class="scard">
+      <div class="scard-title"><span>🕌</span> Session setup</div>
+      <div class="field-grp">
+        <div class="field-lbl">Date</div>
+        <input type="date" class="field-inp" id="s-date">
+      </div>
+      <div class="field-grp">
+        <div class="field-lbl">Select your circle</div>
+        <div class="circle-grid" id="circle-grid"></div>
+      </div>
+      <div class="field-grp" style="margin-bottom:0">
+        <div class="field-lbl">Teacher name</div>
+        <input type="text" class="field-inp" id="s-teacher" placeholder="Your name">
+      </div>
+    </div>
+
+    <div class="scard">
+      <div class="scard-title"><span>👥</span> Students <span style="font-size:12px;font-weight:400;color:var(--ink3);margin-left:4px">name + current page</span></div>
+      <div class="student-list-setup" id="s-list"></div>
+      <div class="add-s-row" style="margin-top:10px">
+        <input type="text" id="new-sname" placeholder="Student name" onkeydown="if(event.key==='Enter')addSetupStudent()">
+        <input type="text" id="new-spage" placeholder="Pg" class="pg-f" onkeydown="if(event.key==='Enter')addSetupStudent()">
+        <button class="btn-outline" onclick="addSetupStudent()">+ Add</button>
+      </div>
+    </div>
+
+    <button class="btn-primary" onclick="startSession()">Start session →</button>
+  </div>
+</div>
+
+<!-- ══ SCREEN: SESSION ══ -->
+<div class="screen" id="scr-session">
+  <div class="app-header">
+    <div class="hdr-row">
+      <button class="hdr-btn" onclick="goSetup()">←</button>
+      <div><div class="app-title" id="sess-title">Session</div><div class="app-sub" id="sess-sub"></div></div>
+    </div>
+    <div class="session-meta" id="sess-meta"></div>
+  </div>
+  <div class="prog-strip"><div class="prog-fill" id="top-prog"></div></div>
+  <div class="student-scroll" id="stu-scroll"></div>
+  <div class="sess-footer">
+    <div class="foot-prog">
+      <div class="foot-lbl" id="foot-lbl">0 of 0 filled</div>
+      <div class="foot-bar-bg"><div class="foot-bar-fill" id="foot-bar" style="width:0%"></div></div>
+    </div>
+    <button class="sub-btn" id="sub-btn" onclick="submitSession()" disabled>Submit ✓</button>
+  </div>
+</div>
+
+<!-- ══ SCREEN: SUCCESS ══ -->
+<div class="screen" id="scr-success">
+  <div class="app-header">
+    <div class="hdr-row">
+      <div class="app-logo">☪</div>
+      <div class="app-title">Session submitted</div>
+    </div>
+  </div>
+  <div class="success-body">
+    <div class="suc-icon">✅</div>
+    <div class="suc-title">JazakAllah Khayr!</div>
+    <div class="suc-sub" id="suc-sub"></div>
+    <div class="suc-pills" id="suc-pills"></div>
+    <button class="btn-primary" style="max-width:300px" onclick="goSetup()">Start new session</button>
+  </div>
+</div>
+
+<!-- ══ SCREEN: PIN ══ -->
+<div class="screen" id="scr-pin">
+  <div class="app-header">
+    <div class="hdr-row">
+      <button class="hdr-btn" onclick="showScreen('scr-setup')">←</button>
+      <div class="app-title">Supervisor access</div>
+    </div>
+  </div>
+  <div class="pin-body">
+    <div class="pin-icon">🔐</div>
+    <div class="pin-title">Enter supervisor PIN</div>
+    <div class="pin-sub">Contact the school coordinator if you don't have the PIN.</div>
+    <input type="password" inputmode="numeric" maxlength="6" class="pin-input" id="pin-input" placeholder="••••" onkeydown="if(event.key==='Enter')checkPin()">
+    <div class="pin-error" id="pin-error"></div>
+    <button class="btn-primary" style="max-width:200px" onclick="checkPin()">Enter</button>
+  </div>
+</div>
+
+<!-- ══ SCREEN: SUPERVISOR ══ -->
+<div class="screen" id="scr-supervisor">
+  <div class="app-header">
+    <div class="hdr-row">
+      <button class="hdr-btn" onclick="showScreen('scr-setup')">←</button>
+      <div><div class="app-title">Supervisor view</div><div class="app-sub">All circles — progress overview</div></div>
+      <div style="margin-left:auto;display:flex;gap:6px">
+        <button class="hdr-btn" onclick="exportReport()" title="Export report">⬇</button>
+        <button class="hdr-btn" onclick="clearHistory()" title="Clear all data">🗑</button>
+      </div>
+    </div>
+  </div>
+  <div class="sup-body" id="sup-body"></div>
+</div>
+
+<script>
+/* ════════════ CONSTANTS ════════════ */
+const WEEKS = 6;
+const STRUGGLE_OPTS = ['—','Harakat','Tanween','Madd letters','Sukoon','Shadda','Letter recognition','Tajweed rule','Fluency','Pronunciation','Other'];
+const CRITERIA = [
+  { key:'attend',  icon:'✅', label:'Attended'  },
+  { key:'page',    icon:'📖', label:'Page up'    },
+  { key:'home',    icon:'🏠', label:'Home prac.' },
+  { key:'tested',  icon:'📝', label:'Tested'     },
+  { key:'struggle',icon:'⚠️', label:'Struggled'  },
+  { key:'repeat',  icon:'🔁', label:'Repeat pg'  },
+  { key:'behav',   icon:'💬', label:'Behaviour'  },
+];
+const AVATAR_COLORS = [
+  ['#e8f5e2','#2d6a1f'],['#efedfd','#4a3aaa'],['#fef3dc','#b06d00'],
+  ['#faeae4','#8b3515'],['#e6f0fc','#1a4f8a'],['#fce8f3','#7a2050'],
+  ['#e1f5ee','#0f6b5a'],['#fdeaea','#9b2020'],
+];
+
+/* ════════════ STATE ════════════ */
+let SESSION = { date:'', teacher:'', circle:'', circleId:'', students:[] };
+let WD = {};      // week data: sid → criteria + note + newPage
+let HISTORY = {}; // sid → { name, page, circle, teacher, history[], lastWD }
+let selectedCircleId = null;
+
+/* ════════════ PERSISTENCE ════════════ */
+function loadHistory()  { try { HISTORY = JSON.parse(localStorage.getItem('qt_h') || '{}'); } catch(e){ HISTORY={}; } }
+function persistHistory(){ localStorage.setItem('qt_h', JSON.stringify(HISTORY)); }
+
+/* ════════════ ROUTING ════════════ */
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+function goSetup() { showScreen('scr-setup'); }
+function goSupervisor() {
+  if (SUPERVISOR_PIN && SUPERVISOR_PIN !== '') {
+    document.getElementById('pin-input').value = '';
+    document.getElementById('pin-error').textContent = '';
+    showScreen('scr-pin');
+  } else {
+    loadHistory(); renderSupervisor(); showScreen('scr-supervisor');
+  }
+}
+function checkPin() {
+  const val = document.getElementById('pin-input').value.trim();
+  if (val === SUPERVISOR_PIN) {
+    loadHistory(); renderSupervisor(); showScreen('scr-supervisor');
+  } else {
+    document.getElementById('pin-error').textContent = 'Incorrect PIN. Try again.';
+    document.getElementById('pin-input').value = '';
+    document.getElementById('pin-input').focus();
+  }
+}
+
+/* ════════════ SETUP ════════════ */
+const DEFAULT_STUDENTS = [
+  { name:'Student 1', page:1 },{ name:'Student 2', page:1 },
+  { name:'Student 3', page:1 },{ name:'Student 4', page:1 },
+  { name:'Student 5', page:1 },
+];
+
+function initSetup() {
+  document.getElementById('s-date').value = new Date().toISOString().slice(0,10);
+  SESSION.students = DEFAULT_STUDENTS.map((s,i) => ({ id:i+1, name:s.name, page:s.page }));
+  renderCircleGrid();
+  renderSetupList();
+}
+
+function renderCircleGrid() {
+  const grid = document.getElementById('circle-grid');
+  grid.innerHTML = CIRCLES.map(c => `
+    <div class="circle-opt ${selectedCircleId===c.id?'selected':''}" onclick="selectCircle('${c.id}')">
+      <div class="co-label">${c.label}</div>
+      <div class="co-teacher">${c.teacher}</div>
+    </div>`).join('');
+}
+
+function selectCircle(id) {
+  selectedCircleId = id;
+  const circle = CIRCLES.find(c => c.id === id);
+  document.getElementById('s-teacher').value = circle.teacher;
+  renderCircleGrid();
+}
+
+function renderSetupList() {
+  document.getElementById('s-list').innerHTML = SESSION.students.map((s,i) => `
+    <div class="s-setup-row">
+      <input type="text" value="${s.name}" onchange="SESSION.students[${i}].name=this.value.trim()" placeholder="Name">
+      <span class="pg-badge">Pg ${s.page}</span>
+      <button class="del-btn" onclick="removeSetupStudent(${s.id})">✕</button>
+    </div>`).join('');
+}
+
+function addSetupStudent() {
+  const nEl = document.getElementById('new-sname');
+  const pEl = document.getElementById('new-spage');
+  const name = nEl.value.trim();
+  const page = parseInt(pEl.value) || 1;
+  if (!name) { nEl.focus(); return; }
+  SESSION.students.push({ id: Date.now(), name, page });
+  nEl.value = ''; pEl.value = '';
+  renderSetupList();
+  nEl.focus();
+}
+
+function removeSetupStudent(id) {
+  SESSION.students = SESSION.students.filter(s => s.id !== id);
+  renderSetupList();
+}
+
+function startSession() {
+  const teacher = document.getElementById('s-teacher').value.trim();
+  const date    = document.getElementById('s-date').value;
+  if (!selectedCircleId) { showToast('Please select a circle'); return; }
+  if (!teacher)          { showToast('Please enter teacher name'); return; }
+  if (!SESSION.students.length) { showToast('Please add students'); return; }
+
+  const circle = CIRCLES.find(c => c.id === selectedCircleId);
+  SESSION.date     = date;
+  SESSION.teacher  = teacher;
+  SESSION.circle   = circle.label;
+  SESSION.circleId = circle.id;
+
+  WD = {};
+  SESSION.students.forEach(s => {
+    WD[s.id] = { attend:false, page:false, home:false, tested:false, struggle:false, repeat:false, behav:false, struggleType:'', note:'', newPage:s.page };
+  });
+
+  renderSession();
+  showScreen('scr-session');
+}
+
+/* ════════════ SESSION ════════════ */
+function renderSession() {
+  document.getElementById('sess-title').textContent = `${SESSION.circle} — ${SESSION.teacher}`;
+  document.getElementById('sess-sub').textContent   = `${SESSION.date} · Noorani Qa'idah`;
+  document.getElementById('sess-meta').innerHTML    = `
+    <div class="meta-i">📅 <strong>${SESSION.date}</strong></div>
+    <div class="meta-i">👤 <strong>${SESSION.teacher}</strong></div>
+    <div class="meta-i">👥 <strong>${SESSION.students.length}</strong> students</div>`;
+
+  const scroll = document.getElementById('stu-scroll');
+  scroll.innerHTML = '';
+
+  SESSION.students.forEach((s, idx) => {
+    const [bg, fg] = AVATAR_COLORS[idx % AVATAR_COLORS.length];
+    const init = s.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+
+    const critBtns = CRITERIA.map(cr => `
+      <div class="cr-btn" data-k="${cr.key}" id="cr-${s.id}-${cr.key}" onclick="toggleCrit(${s.id},'${cr.key}')" role="button" aria-label="${cr.label}">
+        <div class="cr-icon">${cr.icon}</div>
+        <div class="cr-txt">${cr.label}</div>
+      </div>`).join('');
+
+    const strOpts = STRUGGLE_OPTS.map(o => `<option value="${o}">${o}</option>`).join('');
+
+    const card = document.createElement('div');
+    card.className = 'sc';
+    card.id = `sc-${s.id}`;
+    card.innerHTML = `
+      <div class="sc-hdr" onclick="toggleCard(${s.id})">
+        <div class="s-av" style="background:${bg};color:${fg}">${init}</div>
+        <div class="s-info">
+          <div class="s-name">${s.name}</div>
+          <div class="s-status" id="st-${s.id}">Tap to fill in</div>
+        </div>
+        <div class="s-chev">⌄</div>
+      </div>
+      <div class="sc-body">
+        <div class="pg-sec">
+          <div class="pg-lbl">Page this session</div>
+          <div class="pg-ctrl">
+            <button onclick="bumpPage(${s.id},-1)" aria-label="Page down">−</button>
+            <div class="pg-num" id="pn-${s.id}">${s.page}</div>
+            <button onclick="bumpPage(${s.id},+1)" aria-label="Page up">+</button>
+          </div>
+          <span class="pg-delta d-same" id="pd-${s.id}">same</span>
+        </div>
+        <div class="cr-lbl">This session</div>
+        <div class="cr-grid">${critBtns}</div>
+        <select class="str-sel" id="str-${s.id}" onchange="WD[${s.id}].struggleType=this.value">${strOpts}</select>
+        <textarea class="note-ta" placeholder="Session note / parent follow-up..." oninput="WD[${s.id}].note=this.value"></textarea>
+      </div>`;
+    scroll.appendChild(card);
+  });
+
+  updateFooter();
+}
+
+function toggleCard(sid) {
+  const card = document.getElementById(`sc-${sid}`);
+  const wasOpen = card.classList.contains('open');
+  document.querySelectorAll('.sc.open').forEach(c => c.classList.remove('open'));
+  if (!wasOpen) card.classList.add('open');
+}
+
+function bumpPage(sid, delta) {
+  const d = WD[sid];
+  d.newPage = Math.max(1, d.newPage + delta);
+  const s = SESSION.students.find(x => x.id === sid);
+  const diff = d.newPage - s.page;
+  document.getElementById(`pn-${sid}`).textContent = d.newPage;
+  const el = document.getElementById(`pd-${sid}`);
+  el.textContent = diff > 0 ? `+${diff} pg` : diff < 0 ? `${diff} pg` : 'same';
+  el.className = 'pg-delta ' + (diff>0?'d-up':diff<0?'d-down':'d-same');
+  d.page = diff > 0;
+  refreshCritBtn(sid,'page');
+  updateStatus(sid);
+  updateFooter();
+}
+
+function toggleCrit(sid, key) {
+  const d = WD[sid];
+  d[key] = !d[key];
+  refreshCritBtn(sid, key);
+  if (key === 'struggle') document.getElementById(`str-${sid}`).classList.toggle('show', d[key]);
+  updateStatus(sid);
+  updateFooter();
+}
+
+function refreshCritBtn(sid, key) {
+  const btn = document.getElementById(`cr-${sid}-${key}`);
+  if (btn) btn.classList.toggle('on', WD[sid][key]);
+}
+
+function updateStatus(sid) {
+  const d = WD[sid];
+  const card = document.getElementById(`sc-${sid}`);
+  const pips = [];
+  if (d.attend)   pips.push('<span class="pip pip-a" title="Attended"></span>');
+  if (d.home)     pips.push('<span class="pip pip-h" title="Home practice"></span>');
+  if (d.tested)   pips.push('<span class="pip pip-t" title="Tested"></span>');
+  if (d.struggle) pips.push('<span class="pip pip-s" title="Struggled"></span>');
+  if (d.repeat)   pips.push('<span class="pip pip-r" title="Repeat page"></span>');
+  if (d.behav)    pips.push('<span class="pip pip-b" title="Behaviour"></span>');
+
+  card.classList.toggle('complete', d.attend && !d.behav && !d.repeat);
+  card.classList.toggle('flagged', d.behav || (d.struggle && !d.attend) || d.repeat);
+
+  const statusEl = document.getElementById(`st-${sid}`);
+  if (!pips.length && !d.page) { statusEl.innerHTML = 'Tap to fill in'; return; }
+  statusEl.innerHTML = `Pg ${d.newPage} &nbsp; ${pips.join('')}`;
+}
+
+function isTouched(sid) {
+  const d = WD[sid];
+  return d.attend || d.page || d.home || d.tested || d.struggle || d.repeat || d.behav || d.note !== '';
+}
+
+function updateFooter() {
+  const total  = SESSION.students.length;
+  const filled = SESSION.students.filter(s => isTouched(s.id)).length;
+  const pct    = total > 0 ? Math.round((filled/total)*100) : 0;
+  document.getElementById('foot-lbl').textContent = `${filled} of ${total} students filled`;
+  document.getElementById('foot-bar').style.width = pct + '%';
+  document.getElementById('top-prog').style.width = pct + '%';
+  document.getElementById('sub-btn').disabled = filled === 0;
+}
+
+/* ════════════ GRADE / TREND / ACTION ════════════ */
+function grade(sid) {
+  const d = WD[sid];
+  if (!d.attend) return 'r';
+  const pos = [d.attend, d.page, d.home].filter(Boolean).length;
+  if (pos === 3 && !d.struggle && !d.repeat) return 'g';
+  if (pos >= 2) return 'a';
+  return 'r';
+}
+
+function trend(history) {
+  if (!history || history.length < 1) return { label:'New', cls:'ab-ok' };
+  const sc = x => x==='g'?2:x==='a'?1:0;
+  const slice = history.slice(-3);
+  const avg = slice.reduce((a,b)=>a+sc(b),0) / slice.length;
+  if (avg >= 1.6) return { label:'Improving',      cls:'ab-praise' };
+  if (avg >= 0.8) return { label:'Steady',          cls:'ab-ok'     };
+  return             { label:'Falling behind',    cls:'ab-watch'  };
+}
+
+function action(history, wd) {
+  if (!history || history.length < 1) return { label:'No data yet', cls:'ab-ok' };
+  const reds = history.slice(-3).filter(x=>x==='r').length;
+  if (reds >= 2)                       return { label:'Call parent now',    cls:'ab-call'   };
+  if (wd && wd.behav)                  return { label:'Discuss behaviour',  cls:'ab-call'   };
+  if (wd && wd.repeat)                 return { label:'Repeat & support',   cls:'ab-watch'  };
+  if (wd && !wd.home && reds >= 1)     return { label:'Chase home practice',cls:'ab-watch'  };
+  if (trend(history).label==='Falling behind') return { label:'Watch closely', cls:'ab-watch' };
+  if (trend(history).label==='Improving')      return { label:'Praise publicly',cls:'ab-praise'};
+  return { label:'On track', cls:'ab-ok' };
+}
+
+/* ════════════ JOTFORM SUBMIT ════════════ */
+function buildJotformUrl(s) {
+  const d  = WD[s.id];
+  const cfg = JOTFORM_CONFIG;
+  if (cfg.formId === 'YOUR_FORM_ID_HERE') return null;
+  const base = `https://submit.jotform.com/submit/${cfg.formId}/`;
+  const p = new URLSearchParams({
+    [cfg.fields.submissionDate]:   SESSION.date,
+    [cfg.fields.teacherName]:      SESSION.teacher,
+    [cfg.fields.circleName]:       SESSION.circle,
+    [cfg.fields.studentName]:      s.name,
+    [cfg.fields.pageLastWeek]:     String(s.page),
+    [cfg.fields.pageThisWeek]:     String(d.newPage),
+    [cfg.fields.attended]:         d.attend  ? 'Yes':'No',
+    [cfg.fields.pageAdvanced]:     d.page    ? 'Yes':'No',
+    [cfg.fields.homePractice]:     d.home    ? 'Yes':'No',
+    [cfg.fields.recitationTested]: d.tested  ? 'Yes':'No',
+    [cfg.fields.repeatPage]:       d.repeat  ? 'Yes':'No',
+    [cfg.fields.behaviourNote]:    d.behav   ? 'Yes':'No',
+    [cfg.fields.struggled]:        d.struggle? 'Yes':'No',
+    [cfg.fields.struggleTopic]:    d.struggleType || '—',
+    [cfg.fields.sessionNote]:      d.note || '',
+    [cfg.fields.weekTrend]:        trend(HISTORY[s.id]?.history).label,
+    [cfg.fields.actionRequired]:   action(HISTORY[s.id]?.history, d).label,
+  });
+  return base + '?' + p.toString();
+}
+
+async function silentSubmit(s) {
+  const url = buildJotformUrl(s);
+  if (!url) return;
+  try { await fetch(url, { method:'GET', mode:'no-cors' }); } catch(e){}
+  document.getElementById('jf-iframe').src = url;
+  await new Promise(r => setTimeout(r, 320));
+}
+
+async function submitSession() {
+  const btn = document.getElementById('sub-btn');
+  btn.disabled = true; btn.textContent = 'Submitting…';
+
+  /* update history */
+  loadHistory();
+  SESSION.students.forEach(s => {
+    const g = grade(s.id);
+    if (!HISTORY[s.id]) HISTORY[s.id] = { name:s.name, page:s.page, circle:SESSION.circle, teacher:SESSION.teacher, history:[] };
+    Object.assign(HISTORY[s.id], { name:s.name, page:WD[s.id].newPage, circle:SESSION.circle, teacher:SESSION.teacher, lastWD: {...WD[s.id]} });
+    HISTORY[s.id].history.push(g);
+    if (HISTORY[s.id].history.length > WEEKS) HISTORY[s.id].history.shift();
+  });
+  persistHistory();
+
+  /* submit to JotForm */
+  for (const s of SESSION.students) { await silentSubmit(s); }
+
+  renderSuccess();
+  showScreen('scr-success');
+}
+
+function renderSuccess() {
+  const total    = SESSION.students.length;
+  const attended = SESSION.students.filter(s => WD[s.id].attend).length;
+  const advanced = SESSION.students.filter(s => WD[s.id].page).length;
+  const noHome   = SESSION.students.filter(s => WD[s.id].attend && !WD[s.id].home).length;
+  const flagged  = SESSION.students.filter(s => WD[s.id].behav || WD[s.id].repeat).length;
+  const jfReady  = JOTFORM_CONFIG.formId !== 'YOUR_FORM_ID_HERE';
+
+  document.getElementById('suc-sub').innerHTML =
+    `${SESSION.circle} · ${SESSION.teacher} · ${SESSION.date}<br><br>` +
+    (jfReady ? `✅ ${total} records submitted to JotForm.` : `⚠️ JotForm ID not set — data saved locally only.`);
+
+  document.getElementById('suc-pills').innerHTML = `
+    <span class="suc-pill">${total} students</span>
+    <span class="suc-pill g">${attended} attended</span>
+    <span class="suc-pill g">${advanced} page advanced</span>
+    ${noHome>0  ? `<span class="suc-pill a">${noHome} no home practice</span>`:''}
+    ${flagged>0 ? `<span class="suc-pill r">${flagged} flagged</span>`:''}
+  `;
+}
+
+/* ════════════ SUPERVISOR ════════════ */
+function renderSupervisor() {
+  const body = document.getElementById('sup-body');
+  const all  = Object.values(HISTORY);
+
+  if (!all.length) {
+    body.innerHTML = `<div style="text-align:center;padding:48px 16px;color:var(--ink3)">
+      <div style="font-size:44px;margin-bottom:14px">📋</div>
+      <div style="font-size:15px;font-weight:500;margin-bottom:6px">No sessions submitted yet</div>
+      <div style="font-size:13px">Submit at least one teacher session to see data here.</div>
+    </div>`;
+    return;
+  }
+
+  const total     = all.length;
+  const improving = all.filter(e=>trend(e.history).label==='Improving').length;
+  const falling   = all.filter(e=>trend(e.history).label==='Falling behind').length;
+  const urgent    = all.filter(e=>(e.history||[]).slice(-3).filter(x=>x==='r').length>=2 || e.lastWD?.behav);
+
+  let html = `
+    <div class="sup-metrics">
+      <div class="sup-m"><div class="mv">${total}</div><div class="ml">Students</div></div>
+      <div class="sup-m"><div class="mv g">${improving}</div><div class="ml">Improving</div></div>
+      <div class="sup-m"><div class="mv r">${falling}</div><div class="ml">Falling behind</div></div>
+    </div>`;
+
+  if (urgent.length) {
+    html += `<div class="alert-box">
+      <div class="alert-title">⚠️ ${urgent.length} student${urgent.length>1?'s':''} need immediate action</div>
+      <div class="alert-names">${urgent.map(e=>`<span class="alert-name">${e.name} · ${e.circle}</span>`).join('')}</div>
+    </div>`;
+  }
+
+  /* group by circle */
+  const byCircle = {};
+  all.forEach(e => {
+    const k = e.circle || 'Unknown';
+    if (!byCircle[k]) byCircle[k] = { teacher: e.teacher, students: [] };
+    byCircle[k].students.push(e);
+  });
+
+  /* per-circle summary */
+  html += `<div class="sec-title">Circles</div>`;
+  Object.entries(byCircle).forEach(([circleName, data]) => {
+    const ss    = data.students;
+    const atRisk = ss.filter(e=>(e.history||[]).slice(-3).filter(x=>x==='r').length>=2).length;
+    const improv = ss.filter(e=>trend(e.history).label==='Improving').length;
+    const noHm   = ss.filter(e=>e.lastWD && !e.lastWD.home && e.lastWD.attend).length;
+
+    html += `<div class="circle-block">
+      <div class="circle-block-hdr">
+        <div><div class="cb-title">${circleName}</div><div class="cb-meta">${data.teacher} · ${ss.length} students</div></div>
+        <div class="cb-chips">
+          ${improv>0  ? `<span class="cb-chip g">${improv} improving</span>` : ''}
+          ${noHm>0    ? `<span class="cb-chip a">${noHm} no home</span>` : ''}
+          ${atRisk>0  ? `<span class="cb-chip r">${atRisk} at risk</span>` : ''}
+        </div>
+      </div>`;
+
+    ss.forEach(e => {
+      const t   = trend(e.history);
+      const act = action(e.history, e.lastWD);
+      const dots = (e.history||[]).map(h=>`<span class="hd ${h}"></span>`).join('');
+      const wd  = e.lastWD || {};
+
+      /* criteria tags */
+      const tags = [];
+      if (wd.attend)   tags.push(`<span class="crit-tag pos">Attended</span>`);
+      if (wd.page)     tags.push(`<span class="crit-tag pos">Page up</span>`);
+      if (wd.home)     tags.push(`<span class="crit-tag pos">Home ✓</span>`);
+      if (wd.tested)   tags.push(`<span class="crit-tag pos">Tested</span>`);
+      if (!wd.home && wd.attend) tags.push(`<span class="crit-tag warn">No home</span>`);
+      if (wd.struggle) tags.push(`<span class="crit-tag neg">Struggled${wd.struggleType&&wd.struggleType!=='—'?': '+wd.struggleType:''}</span>`);
+      if (wd.repeat)   tags.push(`<span class="crit-tag neg">Repeat page</span>`);
+      if (wd.behav)    tags.push(`<span class="crit-tag neg">Behaviour</span>`);
+
+      html += `
+        <div class="sup-s-row">
+          <div class="sup-sn">${e.name}</div>
+          <div class="sup-pg">Pg ${e.page}</div>
+          <div class="hist-dots">${dots}</div>
+          <span class="act-badge ${act.cls}">${act.label}</span>
+        </div>`;
+      if (tags.length || wd.note) {
+        html += `<div class="sup-detail-row">
+          <div class="sup-crit-strip">${tags.join('')}</div>
+          ${wd.note ? `<div class="note-display">"${wd.note}"</div>` : ''}
+        </div>`;
+      }
+    });
+
+    html += `</div>`;
+  });
+
+  /* struggle summary */
+  const strMap = {};
+  all.forEach(e => { if (e.lastWD?.struggle && e.lastWD.struggleType && e.lastWD.struggleType!=='—') { strMap[e.lastWD.struggleType]=(strMap[e.lastWD.struggleType]||0)+1; }});
+  if (Object.keys(strMap).length) {
+    html += `<div class="sec-title">Struggle topics — last session</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">`;
+    Object.entries(strMap).sort((a,b)=>b[1]-a[1]).forEach(([k,v])=>{
+      html += `<div style="background:var(--white);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:12px"><strong>${k}</strong> <span style="color:var(--ink3)">${v} student${v>1?'s':''}</span></div>`;
+    });
+    html += `</div>`;
+  }
+
+  /* legend + footer */
+  html += `
+    <div style="display:flex;gap:10px;margin-top:8px;margin-bottom:16px;font-size:11px;color:var(--ink3)">
+      <span><span class="hd g" style="display:inline-block;vertical-align:middle;margin-right:3px"></span>Good week</span>
+      <span><span class="hd a" style="display:inline-block;vertical-align:middle;margin-right:3px"></span>Average</span>
+      <span><span class="hd r" style="display:inline-block;vertical-align:middle;margin-right:3px"></span>Behind</span>
+      <span><span class="hd x" style="display:inline-block;vertical-align:middle;margin-right:3px"></span>No data</span>
+    </div>
+    <div class="sup-foot">
+      <button class="sup-btn" onclick="exportReport()">⬇ Export report</button>
+    </div>`;
+
+  body.innerHTML = html;
+}
+
+function exportReport() {
+  loadHistory();
+  const all = Object.values(HISTORY);
+  let txt = `Quran Circle — Supervisor Report\n${'='.repeat(55)}\nGenerated: ${new Date().toLocaleString()}\n\n`;
+  const byCircle = {};
+  all.forEach(e => { const k=e.circle||'Unknown'; if(!byCircle[k]) byCircle[k]=[]; byCircle[k].push(e); });
+  Object.entries(byCircle).forEach(([c, ss]) => {
+    txt += `${c}\n${'─'.repeat(45)}\n`;
+    ss.forEach(e => {
+      const t   = trend(e.history);
+      const act = action(e.history, e.lastWD);
+      const wd  = e.lastWD || {};
+      txt += `${e.name.padEnd(15)} Pg${String(e.page).padEnd(4)}`;
+      txt += ` Att:${wd.attend?'Y':'N'} Pg+:${wd.page?'Y':'N'} Home:${wd.home?'Y':'N'} Test:${wd.tested?'Y':'N'} Rep:${wd.repeat?'Y':'N'} Beh:${wd.behav?'Y':'N'}`;
+      txt += ` Struggle:${wd.struggle?(wd.struggleType||'Y'):'N'}`;
+      txt += ` History:[${(e.history||[]).join(',')}] Trend:${t.label} → ${act.label}\n`;
+      if (wd.note) txt += `  Note: ${wd.note}\n`;
+    });
+    txt += '\n';
+  });
+  const blob = new Blob([txt],{type:'text/plain'});
+  const a = document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=`quran-report-${new Date().toISOString().slice(0,10)}.txt`; a.click();
+}
+
+function clearHistory() {
+  if (confirm('Clear all history? This cannot be undone.')) {
+    localStorage.removeItem('qt_h'); HISTORY = {}; renderSupervisor();
+  }
+}
+
+/* ════════════ TOAST ════════════ */
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(window._tt);
+  window._tt = setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+/* ════════════ BOOT ════════════ */
+loadHistory();
+initSetup();
+</script>
+</body>
+</html>
