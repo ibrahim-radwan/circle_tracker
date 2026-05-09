@@ -16,23 +16,23 @@
 const JOTFORM_CONFIG = {
   formId: '261281111769052',
   fields: {
-    submissionDate:   'q1_date',
-    teacherName:      'q2_teacher',
-    circleName:       'q3_circle',
-    studentName:      'q4_student',
-    pageLastWeek:     'q5_pageLastWeek',
-    pageThisWeek:     'q6_pageThisWeek',
-    attended:         'q7_attended',
-    pageAdvanced:     'q8_pageAdvanced',
-    homePractice:     'q9_homePractice',
-    recitationTested: 'q10_tested',
-    repeatPage:       'q11_repeat',
-    behaviourNote:    'q12_behaviour',
-    struggled:        'q13_struggled',
-    struggleTopic:    'q14_struggleTopic',
-    sessionNote:      'q15_note',
-    weekTrend:        'q16_trend',
-    actionRequired:   'q17_action'
+    submissionDate:   'q2_q2_datetime0',
+    teacherName:      'q3_q3_textbox1',
+    circleName:       'q4_q4_textbox2',
+    studentName:      'q5_q5_textbox3',
+    pageLastWeek:     'q6_q6_textbox4',
+    pageThisWeek:     'q7_q7_textbox5',
+    attended:         'q8_q8_textbox6',
+    pageAdvanced:     'q9_q9_textbox7',
+    homePractice:     'q10_q10_textbox8',
+    recitationTested: 'q11_q11_textbox9',
+    repeatPage:       'q12_q12_textbox10',
+    behaviourNote:    'q13_q13_textbox11',
+    struggled:        'q14_q14_textbox12',
+    struggleTopic:    'q15_q15_textbox13',
+    sessionNote:      'q16_q16_textarea14',
+    weekTrend:        'q17_q17_textbox15',
+    actionRequired:   'q18_q18_textbox16'
   }
 };
 
@@ -727,7 +727,10 @@ function buildJotformUrl(s) {
   if (cfg.formId === 'YOUR_FORM_ID_HERE') return null;
   const base = `https://submit.jotform.com/submit/${cfg.formId}/`;
   const p = new URLSearchParams({
-    [cfg.fields.submissionDate]:   SESSION.date,
+    // JotForm date field needs month/day/year split
+    [cfg.fields.submissionDate + '[month]']: SESSION.date.split('-')[1],
+    [cfg.fields.submissionDate + '[day]']:   SESSION.date.split('-')[2],
+    [cfg.fields.submissionDate + '[year]']:  SESSION.date.split('-')[0],
     [cfg.fields.teacherName]:      SESSION.teacher,
     [cfg.fields.circleName]:       SESSION.circle,
     [cfg.fields.studentName]:      s.name,
